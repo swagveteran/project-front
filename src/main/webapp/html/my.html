@@ -1,11 +1,365 @@
+<!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>RPG</title>
-    <script src=https://code.jquery.com/jquery-3.6.0.min.js></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link href="/css/my.css" rel="stylesheet">
 </head>
 <body>
+
 <h1>RPG admin panel</h1>
 
+<table id="charactersTable">
+    <thead>
+    <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Title</th>
+        <th>Race</th>
+        <th>Profession</th>
+        <th>Level</th>
+        <th>Birthday</th>
+        <th>Banned</th>
+        <th>Edit</th>
+        <th>Delete</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<div id="paginationControls" style="margin-top: 20px;">
+    <label for="pageSizeSelect">Accounts per page:</label>
+    <select id="pageSizeSelect">
+        <option value="3">3</option>
+        <option value="5" selected>5</option>
+        <option value="10">10</option>
+        <option value="20">20</option>
+    </select>
+
+    <div id="paginationButtons" style="display: inline-block; margin-left: 20px;"></div>
+</div>
+
+<hr>
+<h2>Create New Account</h2>
+<div id="createAccountForm">
+    <label>Name (1-12 chars): <input type="text" id="newName" maxlength="12"></label><br><br>
+    <label>Title (1-30 chars): <input type="text" id="newTitle" maxlength="30"></label><br><br>
+
+    <label>Race:
+        <select id="newRace">
+            <option value="">-- Select Race --</option>
+        </select>
+    </label><br><br>
+
+    <label>Profession:
+        <select id="newProfession">
+            <option value="">-- Select Profession --</option>
+        </select>
+    </label><br><br>
+
+    <label>Level (0-100): <input type="number" id="newLevel" min="0" max="100"></label><br><br>
+
+    <label>Birthday: <input type="date" id="newBirthday"></label><br><br>
+
+    <label>Banned:
+        <select id="newBanned">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+        </select>
+    </label><br><br>
+
+    <button id="createButton">Create</button>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+    let totalPlayersCount = 0;
+    let currentPage = 1;
+    let pageSize = 5;
+
+    const races = ["Human", "Dwarf", "Elf", "Giant", "Orc", "Troll", "Hobbit"];
+    const professions = ["Warrior", "Rogue", "Sorcerer", "Cleric", "Paladin", "Nazgul", "Warlock", "Druid"];
+
+    function getTotalPlayersCount() {
+        return $.get("/rest/players/count").then(count => {
+            totalPlayersCount = count;
+        });
+    }
+
+    function loadPlayers(pageNumber = 1, pageSizeParam = 5) {
+        currentPage = pageNumber;
+        pageSize = pageSizeParam;
+
+        return $.get("/rest/players", {pageNumber: pageNumber - 1, pageSize: pageSize}, function (players) {
+            const tableBody = $("#charactersTable tbody");
+            tableBody.empty();
+
+            players.forEach((player, index) => {
+                const birthday = new Date(player.birthday).toLocaleDateString();
+                const row = `
+                    <tr>
+                        <td>${(pageNumber - 1) * pageSize + index + 1}</td>
+                        <td>${player.name}</td>
+                        <td>${player.title}</td>
+                        <td>${player.race}</td>
+                        <td>${player.profession}</td>
+                        <td>${player.level}</td>
+                        <td>${birthday}</td>
+                        <td>${player.banned}</td>
+                        <td><img src="/img/edit.png" alt="Edit" class="edit-icon" style="cursor:pointer;" data-id="${player.id}"></td>
+                        <td><img src="/img/delete.png" alt="Delete" class="delete-icon" style="cursor:pointer;" data-id="${player.id}"></td>
+                    </tr>`;
+                tableBody.append(row);
+            });
+
+            renderPaginationButtons();
+        });
+    }
+
+    function renderPaginationButtons() {
+        const totalPages = Math.ceil(totalPlayersCount / pageSize);
+        const container = $("#paginationButtons");
+        container.empty();
+
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = $(`<button>${i}</button>`);
+            if (i === currentPage) {
+                btn.attr("disabled", true);
+            }
+            btn.click(() => {
+                loadPlayers(i, pageSize);
+            });
+            container.append(btn);
+        }
+    }
+
+    function deletePlayer(id) {
+        $.ajax({
+            url: `/rest/players/${id}`,
+            type: 'DELETE',
+            success: function () {
+                showToast("The account is successfully deleted", "success");
+                getTotalPlayersCount().then(() => {
+                    const totalPages = Math.ceil(totalPlayersCount / pageSize);
+                    if (currentPage > totalPages && currentPage > 1) {
+                        currentPage = totalPages;
+                    }
+                    loadPlayers(currentPage, pageSize);
+                });
+            },
+            error: function () {
+                showToast("An error when deleting an account", "error");
+            }
+        });
+    }
+
+    function capitalizeToEnum(str) {
+        return str ? str.toUpperCase() : str;
+    }
+
+    function enterEditMode($editIcon) {
+        const $row = $editIcon.closest("tr");
+        $row.find(".delete-icon").hide();
+        $editIcon.attr("src", "/img/save.png").attr("alt", "Save").data("mode", "save");
+
+        const $cells = $row.find("td");
+
+        // Editable fields
+        const name = $cells.eq(1).text();
+        const title = $cells.eq(2).text();
+        const currentRace = $cells.eq(3).text().toLowerCase();
+        const currentProfession = $cells.eq(4).text().toLowerCase();
+        const bannedVal = $cells.eq(7).text().toLowerCase();
+
+        $cells.eq(1).html(`<input type="text" value="${name}">`);
+        $cells.eq(2).html(`<input type="text" value="${title}">`);
+
+        const raceSelect = $('<select></select>');
+        races.forEach(r => {
+            const option = $(`<option></option>`).val(r).text(r);
+            if (r.toLowerCase() === currentRace) option.attr("selected", "selected");
+            raceSelect.append(option);
+        });
+        $cells.eq(3).html(raceSelect);
+
+        const professionSelect = $('<select></select>');
+        professions.forEach(p => {
+            const option = $(`<option></option>`).val(p).text(p);
+            if (p.toLowerCase() === currentProfession) option.attr("selected", "selected");
+            professionSelect.append(option);
+        });
+        $cells.eq(4).html(professionSelect);
+
+        const bannedSelect = $('<select></select>');
+        bannedSelect.append(`<option value="false"${bannedVal === "false" ? " selected" : ""}>No</option>`);
+        bannedSelect.append(`<option value="true"${bannedVal === "true" ? " selected" : ""}>Yes</option>`);
+        $cells.eq(7).html(bannedSelect);
+
+        $editIcon.off("click").on("click", () => saveChanges($editIcon));
+    }
+
+    function saveChanges($editIcon) {
+        const $row = $editIcon.closest("tr");
+        const $cells = $row.find("td");
+
+        const nameVal = $cells.eq(1).find("input").val().trim();
+        const titleVal = $cells.eq(2).find("input").val().trim();
+
+        if (!nameVal) {
+            showToast("The 'Name' field cannot be empty.","error");
+            return;
+        }
+        if (!titleVal) {
+            showToast("The 'Title' field cannot be empty.","error");
+            return;
+        }
+
+        const updatedData = {
+            name: nameVal,
+            title: titleVal,
+            race: capitalizeToEnum($cells.eq(3).find("select").val()),
+            profession: capitalizeToEnum($cells.eq(4).find("select").val()),
+            banned: $cells.eq(7).find("select").val() === 'true',
+        };
+
+        const playerId = $editIcon.data("id");
+
+        $.ajax({
+            url: `/rest/players/${playerId}`,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(updatedData),
+            success: function () {
+                loadPlayers(currentPage, pageSize);
+                $row.find(".delete-icon").show();
+                $editIcon.attr("src", "/img/edit.png").attr("alt", "Edit").data("mode", "edit");
+                $editIcon.off("click").on("click", () => enterEditMode($editIcon));
+            },
+            error: function (xhr) {
+                let msg = `An error while maintaining data. Code: ${xhr.status}`;
+                if (xhr.responseText) {
+                    msg += `\nServer response: ${xhr.responseText}`;
+                }
+                showToast(msg, "error");
+            }
+        });
+    }
+
+    function populateCreateSelects() {
+        const raceSelect = $("#newRace");
+        const professionSelect = $("#newProfession");
+
+        races.forEach(r => raceSelect.append(`<option value="${r}">${r}</option>`));
+        professions.forEach(p => professionSelect.append(`<option value="${p}">${p}</option>`));
+    }
+
+    function createPlayer() {
+        const name = $("#newName").val().trim();
+        const title = $("#newTitle").val().trim();
+        const race = $("#newRace").val();
+        const profession = $("#newProfession").val();
+        const level = parseInt($("#newLevel").val(), 10);
+        const birthday = $("#newBirthday").val();
+        const banned = $("#newBanned").val() === "true";
+
+        if (!name || name.length > 12) {
+            showToast("Name must be 1–12 characters.", "error");
+            return;
+        }
+        if (!title || title.length > 30) {
+            showToast("Title must be 1–30 characters.", "error");
+            return;
+        }
+        if (!race) {
+            showToast("Please select a race.", "error");
+            return;
+        }
+        if (!profession) {
+            showToast("Please select a profession.", "error");
+            return;
+        }
+        if (isNaN(level) || level < 0 || level > 100) {
+            showToast("Level must be between 0 and 100.", "error");
+            return;
+        }
+        if (!birthday) {
+            showToast("Please select a birthday.", "error");
+            return;
+        }
+
+        const birthdayMillis = new Date(birthday).getTime();
+
+        const newPlayer = {
+            name: name,
+            title: title,
+            race: capitalizeToEnum(race),
+            profession: capitalizeToEnum(profession),
+            level: level,
+            birthday: birthdayMillis,
+            banned: banned
+        };
+
+        $.ajax({
+            url: "/rest/players",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(newPlayer),
+            success: function () {
+                showToast("Account created successfully.", "success");
+                getTotalPlayersCount().then(() => {
+                    const totalPages = Math.ceil(totalPlayersCount / pageSize);
+                    loadPlayers(totalPages, pageSize);
+                });
+                $("#createAccountForm input").val("");
+                $("#newRace").val("");
+                $("#newProfession").val("");
+                $("#newBanned").val("false");
+            },
+            error: function (xhr) {
+                let msg = "Error creating account.";
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg += "\n" + xhr.responseJSON.message;
+                }
+                showToast(msg, "error");
+            }
+        });
+    }
+
+    $(document).ready(function () {
+        getTotalPlayersCount().then(() => {
+            loadPlayers(1, parseInt($("#pageSizeSelect").val(), 10));
+        });
+
+        $("#pageSizeSelect").change(function () {
+            const newSize = parseInt($(this).val(), 10);
+            loadPlayers(1, newSize);
+        });
+
+        $("#charactersTable tbody")
+            .on("click", ".delete-icon", function () {
+                const playerId = $(this).data("id");
+                deletePlayer(playerId);
+            })
+            .on("click", ".edit-icon", function () {
+                enterEditMode($(this));
+            });
+
+        populateCreateSelects();
+        $("#createButton").click(function () {
+            createPlayer();
+        });
+    });
+
+    function showToast(message, type = "success") {
+        const $toast = $(`<div class="toast ${type}">${message}</div>`);
+        $("#toast-container").append($toast);
+
+        setTimeout(() => {
+            $toast.fadeOut(400, () => $toast.remove());
+        }, 4000);
+    }
+</script>
 </body>
 </html>

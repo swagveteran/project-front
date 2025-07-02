@@ -1,0 +1,162 @@
+/* ===== Таблица ===== */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: Arial, sans-serif;
+    margin-bottom: 20px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+tr:hover {
+    background-color: #f9f9f9;
+}
+
+/* ===== Заголовок ===== */
+h1 {
+    text-align: center;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    color: #2c3e50;
+    margin-top: 20px;
+}
+
+/* ===== Пагинация и селект ===== */
+#paginationControls {
+    font-family: Arial, sans-serif;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 15px;
+}
+
+#paginationButtons button {
+    padding: 6px 12px;
+    margin-right: 5px;
+    border: 1px solid #bbb;
+    background-color: #fff;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+#paginationButtons button:hover:not([disabled]) {
+    background-color: #eee;
+}
+
+#paginationButtons button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* ===== Форма создания ===== */
+#createAccountForm {
+    font-family: Arial, sans-serif;
+    background-color: #fafafa;
+    border: 1px solid #ddd;
+    padding: 20px;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+}
+
+#createAccountForm label {
+    display: block;
+    margin-bottom: 12px;
+    font-weight: bold;
+    color: #333;
+}
+
+#createAccountForm input[type="text"],
+#createAccountForm input[type="number"],
+#createAccountForm input[type="date"],
+#createAccountForm select {
+    width: 100%;
+    padding: 8px 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+    box-sizing: border-box;
+}
+
+#createButton {
+    margin-top: 10px;
+    padding: 10px 20px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#createButton:hover {
+    background-color: #2980b9;
+}
+
+/* ===== Сообщения ===== */
+.alert {
+    padding: 10px;
+    background-color: #f8d7da;
+    border: 1px solid #f5c2c7;
+    color: #842029;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+/* ===== Общие стили ===== */
+hr {
+    margin: 40px 0 20px 0;
+}
+
+h2 {
+    text-align: center;
+    color: #34495e;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.toast {
+    min-width: 200px;
+    margin-bottom: 10px;
+    padding: 10px 20px;
+    color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    opacity: 0.95;
+    font-family: Arial, sans-serif;
+    animation: fadeInOut 4s forwards;
+}
+
+.toast.success {
+    background-color: #2ecc71;
+}
+
+.toast.error {
+    background-color: #e74c3c;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-10px); }
+    10% { opacity: 1; transform: translateY(0); }
+    90% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-10px); }
+}
